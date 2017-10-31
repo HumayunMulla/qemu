@@ -1,14 +1,17 @@
-#include <assert.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
+#include "qemu/osdep.h"
 
 #include "hw/hw.h"
 #include "hw/pci/pci.h"
 #include "hw/scsi/scsi.h"
 #include "sysemu/dma.h"
 #include "qemu/log.h"
+
+#include "hw/hw.h"
+#include "hw/pci/pci.h"
+#include "hw/scsi/scsi.h"
+#include "sysemu/dma.h"
 #include "qemu/timer.h"
+#include "hw/pci/msi.h"
 
 
 #define TYPE_BUSLOGIC "BusLogic"
@@ -905,45 +908,45 @@ static const VMStateDescription vmstate_buslogic_devices = {
 
 
 
-static const VMStateDescription vmstate_buslogic_scsi = {
-    .name = "buslogicscsi",
-    .version_id = 0,
-    .minimum_version_id = 0,
-    // .pre_save = lsi_pre_save,
-    .fields = (VMStateField[]) {
-        VMSTATE_PCI_DEVICE(parent_obj, BuslogicState),
-
-        VMSTATE_UINT8(status_register, BuslogicState),
-        VMSTATE_UINT8(data_in_register, BuslogicState),
-        VMSTATE_UINT8(interrupt_register, BuslogicState),
-        VMSTATE_UINT8(geo_register, BuslogicState),
-        VMSTATE_BOOL(is_status_read, BuslogicState),
-        VMSTATE_UINT8(current_command, BuslogicState),
-        VMSTATE_UINT8(command_bytes_left, BuslogicState),
-        VMSTATE_UINT8(current_command_byte, BuslogicState),
-        VMSTATE_BUFFER(command_buffer, BuslogicState),
-        VMSTATE_UINT8(reply_bytes_left, BuslogicState),
-        VMSTATE_UINT8(current_reply_byte, BuslogicState),
-        VMSTATE_BUFFER(reply_buffer, BuslogicState),
-        VMSTATE_UINT32(mailbox, BuslogicState),
-        VMSTATE_BOOL(fMbxIs24Bit, BuslogicState),
-        VMSTATE_UINT64(GCPhysAddrMailboxOutgoingBase, BuslogicState),
-        VMSTATE_UINT32(uMailboxOutgoingPositionCurrent, BuslogicState),
-        VMSTATE_UINT32(cMailboxesReady, BuslogicState),
-        VMSTATE_BOOL(fNotificationSend, BuslogicState),
-        VMSTATE_UINT64(GCPhysAddrMailboxIncomingBase, BuslogicState),
-        VMSTATE_UINT32(uMailboxIncomingPositionCurrent, BuslogicState),
-        VMSTATE_UINT8(uISABaseCode, BuslogicState),
-        VMSTATE_BOOL(fUseLocalRam, BuslogicState),
-        VMSTATE_BOOL(fStrictRoundRobinMode, BuslogicState),
-        VMSTATE_BOOL(fExtendedLunCCBFormat, BuslogicState),
-        VMSTATE_STRUCT_ARRAY(deviceStates, BuslogicState, BUSLOGIC_MAX_DEVICES, 0, vmstate_buslogic_devices, BUSLOGICDEVICE),
-        VMSTATE_BOOL(fIRQEnabled, BuslogicState),
-        VMSTATE_TIMER(mailboxCheckTimer, BuslogicState),
-        VMSTATE_END_OF_LIST()
-    }
-};
-
+//static const VMStateDescription vmstate_buslogic_scsi = {
+//    .name = "buslogicscsi",
+//    .version_id = 0,
+//    .minimum_version_id = 0,
+//    // .pre_save = lsi_pre_save,
+//    .fields = (VMStateField[]) {
+//        VMSTATE_PCI_DEVICE(parent_obj, BuslogicState),
+//
+//        VMSTATE_UINT8(status_register, BuslogicState),
+//        VMSTATE_UINT8(data_in_register, BuslogicState),
+//        VMSTATE_UINT8(interrupt_register, BuslogicState),
+//        VMSTATE_UINT8(geo_register, BuslogicState),
+//        VMSTATE_BOOL(is_status_read, BuslogicState),
+//        VMSTATE_UINT8(current_command, BuslogicState),
+//        VMSTATE_UINT8(command_bytes_left, BuslogicState),
+//        VMSTATE_UINT8(current_command_byte, BuslogicState),
+//        VMSTATE_BUFFER(command_buffer, BuslogicState),
+//        VMSTATE_UINT8(reply_bytes_left, BuslogicState),
+//        VMSTATE_UINT8(current_reply_byte, BuslogicState),
+//        VMSTATE_BUFFER(reply_buffer, BuslogicState),
+//        VMSTATE_UINT32(mailbox, BuslogicState),
+//        VMSTATE_BOOL(fMbxIs24Bit, BuslogicState),
+//        VMSTATE_UINT64(GCPhysAddrMailboxOutgoingBase, BuslogicState),
+//        VMSTATE_UINT32(uMailboxOutgoingPositionCurrent, BuslogicState),
+//        VMSTATE_UINT32(cMailboxesReady, BuslogicState),
+//        VMSTATE_BOOL(fNotificationSend, BuslogicState),
+//        VMSTATE_UINT64(GCPhysAddrMailboxIncomingBase, BuslogicState),
+//        VMSTATE_UINT32(uMailboxIncomingPositionCurrent, BuslogicState),
+//        VMSTATE_UINT8(uISABaseCode, BuslogicState),
+//        VMSTATE_BOOL(fUseLocalRam, BuslogicState),
+//        VMSTATE_BOOL(fStrictRoundRobinMode, BuslogicState),
+//        VMSTATE_BOOL(fExtendedLunCCBFormat, BuslogicState),
+//        VMSTATE_STRUCT_ARRAY(deviceStates, BuslogicState, BUSLOGIC_MAX_DEVICES, 0, vmstate_buslogic_devices, BUSLOGICDEVICE),
+//        VMSTATE_BOOL(fIRQEnabled, BuslogicState),
+//	    VMSTATE_TIMER(*mailboxCheckTimer, BuslogicState),
+//        VMSTATE_END_OF_LIST()
+//    }
+//};
+//
 
 
 
@@ -1270,7 +1273,6 @@ static void buslogic_scsi_transfer_data(SCSIRequest *req, uint32_t len)
 {
     BuslogicState *pBusLogic = (BuslogicState *) req->hba_private;
     BUSLOGICTASKSTATE *pTaskState = pBusLogic->current_task;
-    PCIDevice *d = PCI_DEVICE(pBusLogic);
     if (len == 0)
         return;
 
@@ -1299,21 +1301,8 @@ static void buslogic_scsi_transfer_data(SCSIRequest *req, uint32_t len)
 /* Callback to indicate that the SCSI layer has completed a command.  */
 static void buslogic_scsi_command_complete(SCSIRequest *req, uint32_t status, size_t resid)
 {
-    uint8_t i = 0;
-    qemu_log_mask(LOG_GUEST_ERROR, "%s   \n",__FUNCTION__, status, resid);
-
-
-
-
-
-
     BuslogicState *pBusLogic = (BuslogicState *) req->hba_private;
     BUSLOGICTASKSTATE *pTaskState = pBusLogic->current_task;
-
-
-
-
-
 
 
     // int rc;
@@ -1388,12 +1377,12 @@ static void buslogic_scsi_request_cancelled(SCSIRequest *req)
     qemu_log_mask(LOG_GUEST_ERROR, "%s!!!!!!!!!!! function without implementation\n",__FUNCTION__);
 }
 
-static uint32_t buslogic_get_sglist_buffer_size()
-{
-    uint32_t size = 0;
-    return size;
-}
-
+//static uint32_t buslogic_get_sglist_buffer_size()
+//{
+//    uint32_t size = 0;
+//    return size;
+//}
+//
 
 
 /**
@@ -1487,9 +1476,9 @@ QEMUSGList *buslogic_scsi_get_sglist(SCSIRequest *req)
 
                 for (iScatterGatherEntry = 0; iScatterGatherEntry < cScatterGatherGCRead; iScatterGatherEntry++)
                 {
-                    uint64_t    GCPhysAddrDataBase;
 
-                    GCPhysAddrDataBase = (uint64_t)aScatterGatherReadGC[iScatterGatherEntry].u32PhysAddrSegmentBase;
+                    //uint64_t    GCPhysAddrDataBase;
+                    //GCPhysAddrDataBase = (uint64_t)aScatterGatherReadGC[iScatterGatherEntry].u32PhysAddrSegmentBase;
                     cbDataToTransfer += aScatterGatherReadGC[iScatterGatherEntry].cbSegment;
                     qemu_sglist_add(sglist, aScatterGatherReadGC[iScatterGatherEntry].u32PhysAddrSegmentBase, aScatterGatherReadGC[iScatterGatherEntry].cbSegment);
 
@@ -1613,7 +1602,6 @@ static void buslogic_scsi_realize(PCIDevice *dev, Error **errp)
     BuslogicState *s = BUSLOGIC_BT958(dev);
     DeviceState *d = DEVICE(dev);
     BusChild *kid;
-    int i = 0;
     memset(s->deviceStates, 0, sizeof(BUSLOGICDEVICE) * BUSLOGIC_MAX_DEVICES);
 
     // dev->bus_master_as
@@ -1710,25 +1698,25 @@ uint64_t buslogicReadOutgoingMailbox(BuslogicState *s, BUSLOGICTASKSTATE *TaskSt
 
 
 /** Convert sense buffer length taking into account shortcut values. */
-static uint32_t buslogicConvertSenseBufferLength(uint32_t cbSense)
-{
-    /* Convert special sense buffer length values. */
-    if (cbSense == 0)
-    {
-        cbSense = 14;   /* 0 means standard 14-byte buffer. */
-    }
-    else if (cbSense == 1)
-    {
-        cbSense = 0;    /* 1 means no sense data. */
-    }
-    else if (cbSense < 8)
-    {
-        // AssertMsgFailed(("Reserved cbSense value of %d used!\n", cbSense));
-    }
-
-    return cbSense;
-}
-
+//static uint32_t buslogicConvertSenseBufferLength(uint32_t cbSense)
+//{
+//    /* Convert special sense buffer length values. */
+//    if (cbSense == 0)
+//    {
+//        cbSense = 14;   /* 0 means standard 14-byte buffer. */
+//    }
+//    else if (cbSense == 1)
+//    {
+//        cbSense = 0;    /* 1 means no sense data. */
+//    }
+//    else if (cbSense < 8)
+//    {
+//        // AssertMsgFailed(("Reserved cbSense value of %d used!\n", cbSense));
+//    }
+//
+//    return cbSense;
+//}
+//
 
 
 /**
@@ -1738,28 +1726,28 @@ static uint32_t buslogicConvertSenseBufferLength(uint32_t cbSense)
  * @param   pTaskState    Pointer to the task state.
  * @note Current assumption is that the sense buffer is not scattered and does not cross a page boundary.
  */
-static int buslogicSenseBufferAlloc(BUSLOGICTASKSTATE *pTaskState)
-{
-    // PDMDEVINS *pDevIns = pTaskState->TargetDevice->pBusLogic->pDevIns;
-    uint32_t   cbSenseBuffer;
-
-    pTaskState->pbSenseBuffer = NULL;
-
-    cbSenseBuffer = buslogicConvertSenseBufferLength(pTaskState->CommandControlBlockGuest.c.cbSenseData);
-    if (cbSenseBuffer)
-    {
-        pTaskState->pbSenseBuffer = (uint8_t *)g_malloc0(cbSenseBuffer);
-        if (!pTaskState->pbSenseBuffer)
-        {
-            //no memory
-            return -1;
-        }
-        // memset(pTaskState->pbSenseBuffer, 0, cbSenseBuffer);
-    }
-
-    return 1;
-}
-
+//static int buslogicSenseBufferAlloc(BUSLOGICTASKSTATE *pTaskState)
+//{
+//    // PDMDEVINS *pDevIns = pTaskState->TargetDevice->pBusLogic->pDevIns;
+//    uint32_t   cbSenseBuffer;
+//
+//    pTaskState->pbSenseBuffer = NULL;
+//
+//    cbSenseBuffer = buslogicConvertSenseBufferLength(pTaskState->CommandControlBlockGuest.c.cbSenseData);
+//    if (cbSenseBuffer)
+//    {
+//        pTaskState->pbSenseBuffer = (uint8_t *)g_malloc0(cbSenseBuffer);
+//        if (!pTaskState->pbSenseBuffer)
+//        {
+//            //no memory
+//            return -1;
+//        }
+//        // memset(pTaskState->pbSenseBuffer, 0, cbSenseBuffer);
+//    }
+//
+//    return 1;
+//}
+//
 
 
 
@@ -1771,8 +1759,8 @@ static int buslogicSenseBufferAlloc(BUSLOGICTASKSTATE *pTaskState)
  * @returns VBox status code.
  * @param   pTaskState    Pointer to the task state.
  */
-static int buslogicDataBufferAlloc(BUSLOGICTASKSTATE *pTaskState)
-{
+//static int buslogicDataBufferAlloc(BUSLOGICTASKSTATE *pTaskState)
+//{
     // // PDMDEVINS *pDevIns = pTaskState->CTX_SUFF(pTargetDevice)->CTX_SUFF(pBusLogic)->CTX_SUFF(pDevIns);
     // uint32_t   cbDataCCB;
     // uint32_t   u32PhysAddrCCB;
@@ -1891,8 +1879,8 @@ static int buslogicDataBufferAlloc(BUSLOGICTASKSTATE *pTaskState)
     //     }
     // }
 
-    return 1;
-}
+//    return 1;
+//}
 
 
 
@@ -1994,7 +1982,7 @@ void buslogicDataBufferFree(BUSLOGICTASKSTATE *pTaskState)
             // Log(("GCPhysAddrDataBase=0x%RGp\n", GCPhysAddrDataBase));
 
             /* Copy the data into the guest memory. */
-            cpu_physical_memory_write(GCPhysAddrDataBase, pTaskState->sglEntry.base, pTaskState->sglEntry.len);
+            cpu_physical_memory_write(GCPhysAddrDataBase, (void*)pTaskState->sglEntry.base, pTaskState->sglEntry.len);
         }
 
     }
@@ -2253,7 +2241,7 @@ int buslogicDeviceSCSIRequestSetup(BuslogicState *s, BUSLOGICTASKSTATE *TaskStat
         if (!pDev)
         {
             qemu_log_mask(LOG_GUEST_ERROR, "Can not find target device \n");
-            return;
+            return -1;
         }
         else
         {
@@ -3012,7 +3000,7 @@ static void buslogic_class_init(ObjectClass *klass, void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     qemu_log_mask(LOG_GUEST_ERROR, "%s\n",__FUNCTION__);
 
-    k->init = buslogic_scsi_realize;
+    k->realize = buslogic_scsi_realize;
     k->vendor_id = PCI_VENDOR_ID_BUSLOGIC;
     k->device_id = PCI_DEVICE_ID_BUSLOGIC_BT958;
     k->class_id = PCI_CLASS_STORAGE_RAID;
@@ -3020,7 +3008,7 @@ static void buslogic_class_init(ObjectClass *klass, void *data)
     k->subsystem_id = 0x1040;
     k->config_write = buslogic_write_config;
     dc->reset = buslogic_scsi_reset;
-    dc->vmsd = &vmstate_buslogic_scsi;
+    //dc->vmsd = &vmstate_buslogic_scsi;
 
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
